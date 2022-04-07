@@ -13,6 +13,9 @@ import "./styles/App.css";
 const ProfileContent = () => {
     const { instance, accounts } = useMsal();
     const [graphData, setGraphData] = useState(null);
+    const [activationResponse, setActivationResponse] = useState(null);
+    const [token, setToken] = useState(null);
+    const [input, setInput] = useState('');
 
     function RequestProfileData() {
         // Silently acquires an access token which is then attached to a request for MS Graph data
@@ -20,18 +23,84 @@ const ProfileContent = () => {
             ...loginRequest,
             account: accounts[0]
         }).then((response) => {
+            debugger
             callMsGraph(response.accessToken).then(response => setGraphData(response));
+        });
+    }
+
+    function activatePurchase(accessToken) {
+        const resolveUrl = "https://marketplaceapi.microsoft.com/api/saas/subscriptions/resolve?api-version=2018-08-31";
+        const headers = new Headers();
+        const bearer = `Bearer ${accessToken}`;
+
+        headers.append("Authorization", bearer);
+        headers.append("x-ms-marketplace-token", input);
+
+        const options = {
+            method: "POST",
+            headers: headers
+        };
+
+        debugger
+
+        return fetch(resolveUrl, options)
+            .then(response => response.json())
+            .catch(error => console.log(error));
+    }
+
+    function activatePurchaseFromMonet(accessToken) {
+        const resolveUrl = "http://minint-etcbjf5:8854/api/v1.0/Offers/confluentinc.confluent-enterprise";
+        const headers = new Headers();
+        const bearer = `Bearer ${accessToken}`;
+
+        headers.append("Authorization", bearer);
+
+        const options = {
+            method: "GET",
+            headers: headers
+        };
+
+        debugger
+
+        return fetch(resolveUrl, options)
+            .then(response => response.json())
+            .catch(error => console.log(error));
+    }
+
+    function RequestActivation() {
+        // Silently acquires an access token which is then attached to a request for MS Graph data
+        instance.acquireTokenSilent({
+            ...loginRequest,
+            account: accounts[0]
+        }).then((response) => {
+            debugger
+            activatePurchaseFromMonet(response.accessToken).then(response => setActivationResponse(response));
+        });
+    }
+
+    function fetchToken() {
+        // Silently acquires an access token which is then attached to a request for MS Graph data
+        const param = {
+            ...loginRequest,
+            account: accounts[0]
+        };
+        instance.acquireTokenSilent(param).then((response) => {
+            debugger
+            setToken(response.accessToken);
         });
     }
 
     return (
         <>
             <h5 className="card-title">Welcome {accounts[0].name}</h5>
-            {graphData ? 
+            {graphData ?
                 <ProfileData graphData={graphData} />
                 :
-                <Button variant="secondary" onClick={RequestProfileData}>Request Profile Information</Button>
+                <Button variant="secondary" onClick={fetchToken}>Fetch token</Button>
             }
+            {/* <input value={input} onInput={e => setInput(e.target.value)}/> */}
+            <Button variant="secondary" onClick={RequestActivation}>Activate</Button>
+            {activationResponse}
         </>
     );
 };
@@ -39,7 +108,7 @@ const ProfileContent = () => {
 /**
  * If a user is authenticated the ProfileContent component above is rendered. Otherwise a message indicating a user is not authenticated is rendered.
  */
-const MainContent = () => {    
+const MainContent = () => {
     return (
         <div className="App">
             <AuthenticatedTemplate>
